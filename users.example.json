@@ -1,0 +1,24 @@
+{
+  "owner_id": "kevin",
+  "active_user_id": "kevin",
+  "future_features": {
+    "face_recognition_enabled": false
+  },
+  "security": {
+    "co_owner_ids": [],
+    "main_system_fingerprint": null
+  },
+  "users": {
+    "kevin": {
+      "id": "kevin",
+      "name": "Kevin",
+      "tier": 5,
+      "role": "owner",
+      "permissions": ["all"],
+      "voice_enrolled": false,
+      "future_features": {
+        "face_recognition": false
+      }
+    }
+  }
+}

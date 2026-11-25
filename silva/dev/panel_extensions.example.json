@@ -1,0 +1,8 @@
+[
+  {
+    "id": "future_features",
+    "title": "4. More Features",
+    "description": "Add future Silva tools here. Register new tabs in silva/dev/panel_registry.py or extend this file with new entries.",
+    "notes": "Current live features are pushed from tab 3 (Live Update).\nSilva reads ~/.silva/dev/speech_training.json and config universal_features.\nDrop new panel tabs by calling register_panel_tab() from your feature module."
+  }
+]

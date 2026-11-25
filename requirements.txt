@@ -1,0 +1,14 @@
+pyttsx3>=2.90
+SpeechRecognition>=3.10.4
+PyAudio>=0.2.14
+requests>=2.31.0
+pycaw>=20251023
+numpy>=1.26.0
+opencv-python>=4.8.0
+sympy>=1.12
+Pillow>=10.0.0
+torch>=2.7.0
+diffusers>=0.35.0
+transformers>=4.49.0
+accelerate>=1.4.0
+safetensors>=0.5.2
