@@ -1,0 +1,17 @@
+{
+  "version": "0.1.118",
+  "released_at": "2026-11-25 14:27:56",
+  "features": [
+    "weather",
+    "math"
+  ],
+  "changelog": [
+    "guest demo",
+    "assistant",
+    "news briefing",
+    "news monitor",
+    "config",
+    "attitude"
+  ],
+  "fingerprint": "33007ee8752faaf9"
+}
