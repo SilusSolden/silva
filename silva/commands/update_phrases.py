@@ -415,11 +415,19 @@ _APPLY_NEEDLES = (
 
 _DECLINE_EXACT = frozenset(
     {
+        "no",
+        "nope",
+        "nah",
+        "negative",
+        "cancel",
+        "cancel that",
         "not now",
         "later",
         "no update",
         "skip update",
         "no thanks",
+        "no thank you",
+        "no please",
         "dont update",
         "do not update",
         "not yet",

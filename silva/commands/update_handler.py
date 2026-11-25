@@ -424,7 +424,10 @@ def apply_live_now(assistant, *, sleep_after: bool = False) -> None:
     active_user = get_active_user()
     if not can_apply_update(active_user):
         if normalize_tier(active_user.get("tier")) < 4:
-            _speak_update(assistant, "Only the owner can apply a live update by voice.")
+            _speak_update(
+                assistant,
+                "Ask an admin, chat rep, or the owner to update Silva for you.",
+            )
         else:
             _speak_update(assistant, "Ask the owner to approve this update before applying it.")
         if sleep_after:
@@ -461,7 +464,7 @@ def apply_live_now(assistant, *, sleep_after: bool = False) -> None:
         return
 
     assistant._update_apply_in_progress = True
-    _speak_update(assistant, "Updating.")
+    _speak_update(assistant, "Yes, I will update it now. Please hold on.")
 
     def worker() -> None:
         try:

@@ -181,6 +181,7 @@ DEFAULT_CONFIG = {
     "auto_update_run_tests_before_apply": False,
     "update_manifest_url": "",
     "update_requires_confirmation": True,
+    "show_update_check_errors": False,
     "github_repository": "SilusSolden/silva",
     "github_issues_email": "SilusSolden@gmail.com",
     "phrase_recording_enabled": True,

@@ -267,6 +267,7 @@ class SilvaAssistant:
         self._last_code_notice_fp = ""
         self._last_update_check = 0.0
         self._update_offer: dict | None = None
+        self._deferred_update_offer: dict | None = None
         self._update_notify_version = ""
         self._update_apply_in_progress = False
         self._sleep_reminder_index = 0
@@ -1251,7 +1252,7 @@ class SilvaAssistant:
 
         if not auto_update_enabled():
             return
-        if self._should_skip_update_prompts():
+        if self._should_skip_update_prompts() and not self._asleep:
             from silva.dev.panel_update import scan_panel_changes
             from silva.dev.update_scanner import compute_code_fingerprint
 
@@ -1285,7 +1286,7 @@ class SilvaAssistant:
             log_info("Update scan: no newer version detected.")
             return
         log_info(f"Update scan: newer version {scan.version} available (installed {scan.installed_version}).")
-        if self._should_skip_update_prompts():
+        if self._should_skip_update_prompts() and not self._asleep:
             return
         self._handle_update_scan_result(scan)
 
@@ -1310,13 +1311,13 @@ class SilvaAssistant:
             return
         if not version_newer(scan.version, scan.installed_version) and not scan.pending_reload:
             return
-        if self._should_skip_update_prompts():
+        if self._update_apply_in_progress:
             return
         if self._update_offer and self._update_offer.get("version") == scan.version:
             return
         if scan.version == self._update_notify_version and self._update_offer is None:
             return
-        if self._update_apply_in_progress:
+        if self._should_skip_update_prompts() and not self._asleep:
             return
 
         user = get_active_user()
@@ -1326,6 +1327,10 @@ class SilvaAssistant:
             "scan": scan,
         }
         self._update_notify_version = scan.version
+
+        if self._asleep:
+            self._deferred_update_offer = dict(self._update_offer)
+            return
 
         if should_notify_update_available(user):
             notify_users_update_available(scan)
@@ -1337,6 +1342,31 @@ class SilvaAssistant:
 
         if should_speak_update_offer(user) and not self._asleep and not self._speaking:
             self.say(spoken_change_summary(scan), interruptible=True)
+
+    def _deliver_deferred_update_offer(self) -> None:
+        offer = self._deferred_update_offer
+        if not offer:
+            return
+        scan = offer.get("scan")
+        if scan is None:
+            self._deferred_update_offer = None
+            return
+        from silva.dev.auto_update import spoken_change_summary
+
+        summary = re.sub(
+            r"\s*Say update Silva to load it\.?\s*$",
+            "",
+            spoken_change_summary(scan),
+            flags=re.I,
+        ).strip()
+        message = (
+            f"{summary} Would you like me to update?"
+            if summary
+            else "There's a Silva update ready. Would you like me to update?"
+        )
+        self._deferred_update_offer = None
+        self._update_offer = offer
+        self._speak_now(message)
 
     def _on_update_popup_choice(self, accepted: bool) -> None:
         if accepted:
@@ -2193,7 +2223,7 @@ class SilvaAssistant:
         self._monitor_screen_activity()
         if self._scheduled_alerts_paused():
             return
-        if not self._should_skip_update_prompts():
+        if self._asleep or not self._should_skip_update_prompts():
             self._maybe_check_for_updates(silent=True)
         if not self._weather_startup_grace_active():
             self._check_weather_alerts()
@@ -2440,6 +2470,7 @@ class SilvaAssistant:
             print("Silva is awake (silent — listening without speaking).")
             return
         self.say(wake_greeting_for_user(), interruptible=False)
+        self._deliver_deferred_update_offer()
 
     def _wait_for_wake(self) -> None:
         from silva.sleep_prompts import looks_like_user_attempt
@@ -3093,6 +3124,9 @@ class SilvaAssistant:
         if handle_location_speech(self, text):
             return True
 
+        if self._handle_update_speech(text):
+            return True
+
         if dispatch_yes_no(self, text):
             return True
 
@@ -3101,9 +3135,6 @@ class SilvaAssistant:
 
         if is_background_command(text):
             return self._handle_background_command(text)
-
-        if self._handle_update_speech(text):
-            return True
 
         if self._handle_phrase_recorder_command(text, user):
             return True

@@ -20,7 +20,7 @@ from silva.dev.paths import (
     RELOAD_FLAG_FILE,
     ensure_dev_dir,
 )
-from silva.logger import log_error, log_info
+from silva.logger import log_error, log_info, log_update_check_error
 
 SILVA_PACKAGE_DIR = Path(__file__).resolve().parents[1]
 BUNDLED_MANIFEST_FILE = SILVA_PACKAGE_DIR / "release_manifest.json"
@@ -170,7 +170,7 @@ def fetch_remote_manifest() -> dict:
             data = json.loads(response.read().decode("utf-8"))
         return data if isinstance(data, dict) else {}
     except (URLError, TimeoutError, json.JSONDecodeError, OSError, ValueError) as exc:
-        log_error("Remote update manifest fetch failed", exc=exc)
+        log_update_check_error("Remote update manifest fetch failed", exc=exc)
         return {}
 
 

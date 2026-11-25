@@ -7,7 +7,7 @@ from datetime import datetime
 from enum import Enum
 from pathlib import Path
 
-from silva.config import CONFIG_DIR
+from silva.config import CONFIG_DIR, load_config, save_config
 
 LOG_DIR = CONFIG_DIR / "logs"
 LOG_FILE = LOG_DIR / "silva.log"
@@ -53,17 +53,39 @@ def log_command(name: str, *, query: str | None = None) -> None:
         log_event(LogKind.COMMAND, name)
 
 
+def _exception_detail(exc: BaseException | None) -> str:
+    if exc is None:
+        return ""
+    return "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+
+
 def log_error(message: str, *, exc: BaseException | None = None) -> None:
-    detail = ""
-    if exc is not None:
-        detail = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
-    log_event(LogKind.ERROR, message, detail=detail)
+    log_event(LogKind.ERROR, message, detail=_exception_detail(exc))
     try:
         from silva.console_view import print_error
 
         print_error(message)
     except Exception:
         print(f"Error: {message}")
+
+
+def update_check_errors_enabled() -> bool:
+    return bool(load_config().get("show_update_check_errors", False))
+
+
+def set_update_check_errors_enabled(enabled: bool) -> bool:
+    config = load_config()
+    value = bool(enabled)
+    config["show_update_check_errors"] = value
+    save_config(config)
+    return value
+
+
+def log_update_check_error(message: str, *, exc: BaseException | None = None) -> None:
+    if update_check_errors_enabled():
+        log_error(message, exc=exc)
+        return
+    log_event(LogKind.ERROR, message, detail=_exception_detail(exc))
 
 
 def log_info(message: str) -> None:

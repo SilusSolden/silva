@@ -152,6 +152,7 @@
   "main_system_profile_popup_after_failures": 3,
   "universal_features": ["weather", "wikipedia", "bug_report", "appointments", "math", "measurement"],
   "update_requires_confirmation": true,
+  "show_update_check_errors": false,
   "github_repository": "SilusSolden/silva",
   "github_issues_email": "SilusSolden@gmail.com",
   "profile_phrases": [],

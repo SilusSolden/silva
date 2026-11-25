@@ -1,17 +1,15 @@
 {
-  "version": "0.1.118",
-  "released_at": "2026-11-25 14:27:56",
+  "version": "0.1.119",
+  "released_at": "2026-11-25 15:12:34",
   "features": [
     "weather",
     "math"
   ],
   "changelog": [
-    "guest demo",
-    "assistant",
-    "news briefing",
-    "news monitor",
-    "config",
-    "attitude"
+    "Update notices now wait until wake, then ask everyone.",
+    "Owner, admins, and chat reps can approve updates.",
+    "Update check errors are hidden unless enabled in the System Panel.",
+    "Clearer yes, no, and apply replies for updates."
   ],
-  "fingerprint": "33007ee8752faaf9"
+  "fingerprint": "75906c3d761d35de"
 }

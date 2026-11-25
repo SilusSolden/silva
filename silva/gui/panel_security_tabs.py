@@ -17,6 +17,7 @@ from silva.dev.admin_review_queue import (
 from silva.dev.code_lab import check_python_snippet, format_check_result
 from silva.dev.panel_registry import register_panel_tab
 from silva.dev.live_update import read_progress
+from silva.logger import set_update_check_errors_enabled, update_check_errors_enabled
 from silva.users.admin_access import (
     CAPABILITIES,
     capability_states,
@@ -258,6 +259,28 @@ def build_update_queue_tab(app, frame) -> None:
     progress.pack(side="left", fill="x", expand=True, padx=(0, 8))
     status = tk.Label(status_bar, text="Idle", font=app._body_font, fg="#37474F")
     status.pack(side="left")
+
+    error_row = tk.Frame(frame)
+    error_row.pack(fill="x", padx=10, pady=(0, 4))
+    error_var = tk.BooleanVar(value=update_check_errors_enabled())
+
+    def toggle_errors(enabled: bool) -> None:
+        value = set_update_check_errors_enabled(enabled)
+        error_var.set(value)
+        status.config(text=f"Update check errors: {'on' if value else 'off'}")
+
+    ttk.Checkbutton(
+        error_row,
+        text="Show update check errors in terminal",
+        variable=error_var,
+        command=lambda: toggle_errors(bool(error_var.get())),
+    ).pack(side="left")
+    tk.Label(
+        error_row,
+        text="Off keeps check failures out of everyone's terminal; details stay in the log.",
+        font=app._body_font,
+        fg="#546E7A",
+    ).pack(side="left", padx=(8, 0))
 
     output = scrolledtext.ScrolledText(frame, font=app._mono_font, height=7, wrap="word")
     output.pack(fill="both", expand=True, padx=10, pady=(0, 10))

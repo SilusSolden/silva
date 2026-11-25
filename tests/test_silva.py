@@ -822,7 +822,7 @@ class SystemPanelSecurityTests(unittest.TestCase):
         with self.assertRaises(PermissionError):
             queue_admin_update({"id": "guest", "name": "Guest", "tier": 1}, features=["x"])
 
-    def test_voice_update_apply_is_owner_only(self):
+    def test_voice_update_apply_requires_privileged_user(self):
         from silva.commands.update_handler import apply_live_now
 
         class Dummy:
@@ -838,7 +838,9 @@ class SystemPanelSecurityTests(unittest.TestCase):
             return_value={"id": "guest", "name": "Guest", "tier": 1},
         ):
             apply_live_now(dummy)
-        self.assertTrue(any("Only the owner" in item for item in dummy.spoken))
+        self.assertTrue(
+            any("Ask an admin, chat rep, or the owner" in item for item in dummy.spoken)
+        )
 
 
 class UpdateFreshnessTests(unittest.TestCase):
@@ -8924,6 +8926,160 @@ class StandaloneLiveChatTests(unittest.TestCase):
             )
         open_popup.assert_called_once()
         self.assertIn("popup", spoken[0].lower())
+
+
+class UpdateFlowRegressionTests(unittest.TestCase):
+    def test_update_check_errors_stay_out_of_terminal_by_default(self):
+        from silva import logger
+
+        with patch.object(
+            logger, "update_check_errors_enabled", return_value=False
+        ), patch.object(logger, "log_error") as shown, patch.object(logger, "log_event") as event:
+            logger.log_update_check_error("GitHub update check failed", exc=RuntimeError("offline"))
+
+        shown.assert_not_called()
+        event.assert_called_once()
+        self.assertEqual(event.call_args.args[0], logger.LogKind.ERROR)
+        self.assertIn("GitHub update check failed", event.call_args.args[1])
+
+    def test_panel_toggle_can_enable_update_check_errors(self):
+        from silva import logger
+
+        with patch.object(logger, "load_config", return_value={}), patch.object(logger, "save_config") as save:
+            enabled = logger.set_update_check_errors_enabled(True)
+
+        self.assertTrue(enabled)
+        self.assertTrue(save.call_args.args[0]["show_update_check_errors"])
+
+    def test_asleep_update_is_deferred_until_wake_for_all_tiers(self):
+        from types import SimpleNamespace
+
+        from silva.assistant import SilvaAssistant
+
+        spoken: list[str] = []
+        assistant = SimpleNamespace(
+            _asleep=True,
+            _speaking=False,
+            _update_offer=None,
+            _deferred_update_offer=None,
+            _update_notify_version="",
+            _update_apply_in_progress=False,
+            _should_skip_update_prompts=lambda: True,
+            _speak_now=lambda text: spoken.append(text),
+            say=lambda text, **_kwargs: spoken.append(text),
+        )
+        status = SimpleNamespace(
+            needs_update=True,
+            available_version="0.1.119",
+            changes=["A fix"],
+        )
+        scan = SimpleNamespace(
+            available=True,
+            version="0.1.118",
+            installed_version="0.1.118",
+            changes=[],
+            pending_reload=False,
+        )
+
+        with patch("silva.dev.update_check.check_update_status", return_value=status), patch(
+            "silva.dev.update_scanner.version_newer", return_value=True
+        ), patch("silva.dev.auto_update.notify_users_update_available") as notify, patch(
+            "silva.dev.auto_update.should_notify_update_available", return_value=True
+        ), patch(
+            "silva.dev.auto_update.should_show_desktop_update_popup", return_value=True
+        ), patch(
+            "silva.dev.auto_update.should_speak_update_offer", return_value=True
+        ), patch(
+            "silva.gui.update_popup.show_update_available_popup"
+        ) as popup, patch(
+            "silva.assistant.get_active_user",
+            return_value={"id": "kevin", "name": "Kevin", "tier": 1},
+        ):
+            SilvaAssistant._handle_update_scan_result(assistant, scan)
+
+        self.assertIsNotNone(assistant._deferred_update_offer)
+        notify.assert_not_called()
+        popup.assert_not_called()
+        self.assertEqual(spoken, [])
+
+        assistant._asleep = False
+        with patch(
+            "silva.dev.auto_update.spoken_change_summary",
+            return_value="There's a Silva update ready. I added a fix. Say update Silva to load it.",
+        ):
+            SilvaAssistant._deliver_deferred_update_offer(assistant)
+
+        self.assertEqual(
+            spoken,
+            ["There's a Silva update ready. I added a fix. Would you like me to update?"],
+        )
+
+    def test_plain_yes_and_no_handle_waiting_update_offer(self):
+        from types import SimpleNamespace
+
+        from silva.commands.update_handler import handle_update_speech
+
+        spoken: list[str] = []
+        assistant = SimpleNamespace(
+            _update_offer={"version": "0.1.119"},
+            _update_help_apply_pending=False,
+            _update_help_check_pending=False,
+            _notes_flow=None,
+            _news_flow=None,
+            _weather_feedback_flow=None,
+            _weather_forecast_flow=None,
+            _appointment_flow=None,
+            _camera_setup_flow=None,
+            _permission_flow=None,
+            _speak_now=lambda text: spoken.append(text),
+        )
+
+        with patch("silva.commands.update_handler.apply_live_now") as apply:
+            self.assertTrue(handle_update_speech(assistant, "yes"))
+        apply.assert_called_once_with(assistant)
+
+        self.assertTrue(handle_update_speech(assistant, "no"))
+        self.assertIsNone(assistant._update_offer)
+        self.assertIn("remind you later", spoken[0])
+
+    def test_apply_acknowledgement_then_update(self):
+        from types import SimpleNamespace
+
+        from silva.commands.update_handler import apply_live_now
+
+        spoken: list[str] = []
+        assistant = SimpleNamespace(
+            _speak_now=lambda text: spoken.append(text),
+            _update_apply_in_progress=False,
+        )
+        status = SimpleNamespace(needs_update=True, available_version="0.1.119")
+        panel = SimpleNamespace(has_changes=True)
+        scan = SimpleNamespace(available=False, pending_reload=False)
+
+        with patch("silva.dev.update_permissions.can_apply_update", return_value=True), patch(
+            "silva.users.manager.get_active_user",
+            return_value={"id": "kevin", "name": "Kevin", "tier": 5},
+        ), patch("silva.dev.update_check.check_update_status", return_value=status), patch(
+            "silva.dev.panel_update.scan_panel_changes", return_value=panel
+        ), patch("silva.dev.update_scanner.scan_for_updates", return_value=scan), patch(
+            "silva.dev.update_scanner.code_file_hashes", return_value={}
+        ), patch("silva.dev.whats_new_script.applied_hashes", return_value={}), patch(
+            "silva.dev.whats_new_script.recent_files", return_value=[]
+        ), patch("silva.commands.update_handler.threading.Thread") as thread:
+            apply_live_now(assistant)
+
+        self.assertIn("Yes, I will update it now. Please hold on.", spoken)
+        thread.assert_called_once()
+
+    def test_chat_rep_can_approve_update(self):
+        from silva.dev.update_permissions import can_apply_update, update_permission_message
+
+        user = {"id": "rep", "name": "Rep", "role": "chat rep", "tier": 2}
+        with patch("silva.users.manager.is_owner", return_value=False), patch(
+            "silva.users.live_chat.can_reply_live_chat", return_value=False
+        ):
+            self.assertTrue(can_apply_update(user))
+            self.assertIn("You can approve", update_permission_message(user))
 
 
 def _load_age_users(path):

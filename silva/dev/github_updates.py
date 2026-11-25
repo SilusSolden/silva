@@ -9,7 +9,7 @@ import json
 import re
 
 from silva.config import load_config
-from silva.logger import log_error
+from silva.logger import log_update_check_error
 
 DEFAULT_REPOSITORY = "SilusSolden/silva"
 DEFAULT_SUPPORT_EMAIL = "SilusSolden@gmail.com"
@@ -97,7 +97,7 @@ def _fetch_json(url: str) -> dict:
             data = json.loads(response.read().decode("utf-8"))
         return data if isinstance(data, dict) else {}
     except (HTTPError, URLError, TimeoutError, json.JSONDecodeError, OSError, ValueError) as exc:
-        log_error("GitHub update check failed", exc=exc)
+        log_update_check_error("GitHub update check failed", exc=exc)
         return {}
 
 

@@ -18,7 +18,7 @@ from silva.dev.update_scanner import (
     save_installed_manifest,
     scan_for_updates,
 )
-from silva.logger import log_error, log_info
+from silva.logger import log_error, log_info, log_update_check_error
 from silva.notifications.dispatch import notify_owner_async
 
 
@@ -193,7 +193,7 @@ def run_update_check_async(*, on_result: Callable[[UpdateScanResult], None]) -> 
         try:
             scan = scan_for_updates()
         except Exception as exc:
-            log_error("Update scan failed", exc=exc)
+            log_update_check_error("Update scan failed", exc=exc)
             scan = UpdateScanResult(available=False)
         on_result(scan)
 
